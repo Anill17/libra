@@ -5,6 +5,7 @@ import com.example.libra.dto.MemberResponse;
 import com.example.libra.model.Loan;
 import com.example.libra.model.LoanStatus;
 import com.example.libra.model.Member;
+import com.example.libra.repository.BookRepo;
 import com.example.libra.repository.LoanRepo;
 import com.example.libra.repository.MemberRepo;
 import lombok.AllArgsConstructor;
@@ -20,6 +21,7 @@ import java.util.stream.Collectors;
 public class LoanService {
     private final LoanRepo loanRepo;
     private final MemberRepo memberRepo;
+    private final BookRepo bookRepo;
 
     private LoanResponse toResponse(Loan l) {
         LoanResponse res = new LoanResponse();
@@ -27,7 +29,7 @@ public class LoanService {
         res.setLoanDate(l.getLoanDate());
         res.setDueDate(l.getDueDate());
         res.setStatus(l.getStatus());
-        res.setBookId(l.getBook().getId());
+        res.setBookId(l.getBook() != null ? l.getBook().getId() : null);
         return res;
     }
     public List<LoanResponse> findByStatus(LoanStatus status){
@@ -41,6 +43,9 @@ public class LoanService {
 
         Long bookId = loanRequest.getBookId();
         Long memberId = loanRequest.getMemberId();
+        var book = bookRepo.findById(bookId)
+                .orElseThrow(() -> new RuntimeException("Book not found: " + bookId));
+
 
         Loan l;
         if (loanRepo.existsByBookIdAndMemberId(bookId, memberId)) {
@@ -55,17 +60,18 @@ public class LoanService {
             else {
                 throw new RuntimeException("The member is not found.");
             }
-
             l.setMember(m);
+            l.setBook(book);
             l.setLoanDate(LocalDateTime.now());
             int loanDays = loanRequest.getLoanDays();
             l.setDueDate(LocalDateTime.now().plusDays(loanDays));
             l.setStatus(LoanStatus.ACTIVE);
             Loan saved = loanRepo.save(l);
+            return toResponse(l);
 
 
         }
-        return toResponse(l);
+
 
 
     }
