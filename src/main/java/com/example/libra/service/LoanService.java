@@ -3,6 +3,7 @@ import com.example.libra.dto.LoanRequest;
 import com.example.libra.dto.LoanResponse;
 import com.example.libra.event.LoanCreatedEvent;
 import com.example.libra.model.Loan;
+import com.example.libra.model.Book;
 import com.example.libra.model.LoanStatus;
 import com.example.libra.model.Member;
 import com.example.libra.repository.BookRepo;
@@ -76,5 +77,19 @@ public class LoanService {
             
             return toResponse(saved);
         }
+    }
+    public LoanResponse returnLoan(LoanRequest loanRequest) {
+        Long loanId = loanRequest.getBookId();
+        Loan loan = loanRepo.findById(loanId)
+                .orElseThrow(() -> new RuntimeException("Loan not found: " + loanId));
+        loan.setStatus(LoanStatus.RETURNED);
+        Loan saved = loanRepo.save(loan);
+        return toResponse(saved);
+    }
+    public void makeBookAvailable(Long bookId) {
+        Book book = bookRepo.findById(bookId)
+                .orElseThrow(() -> new RuntimeException("Book not found: " + bookId));
+        book.setAvailable(true);
+        bookRepo.save(book);
     }
 }

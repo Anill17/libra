@@ -29,5 +29,9 @@ public class LoanController {
     public LoanResponse CreateLoan(@RequestBody LoanRequest loan) {
         return loanService.create(loan);
     }
-
+    @PostMapping("/return")
+    public LoanResponse ReturnLoan(@RequestBody LoanRequest loan) {
+        loanService.makeBookAvailable(loan.getBookId());
+        return loanService.returnLoan(loan);
+    }
 }
