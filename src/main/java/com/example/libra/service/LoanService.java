@@ -1,7 +1,7 @@
 package com.example.libra.service;
 import com.example.libra.dto.LoanRequest;
 import com.example.libra.dto.LoanResponse;
-import com.example.libra.dto.MemberResponse;
+import com.example.libra.event.LoanCreatedEvent;
 import com.example.libra.model.Loan;
 import com.example.libra.model.LoanStatus;
 import com.example.libra.model.Member;
@@ -12,8 +12,6 @@ import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
-
-import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 @Service
@@ -22,6 +20,7 @@ public class LoanService {
     private final LoanRepo loanRepo;
     private final MemberRepo memberRepo;
     private final BookRepo bookRepo;
+    private final KafkaProducerService kafkaProducerService; // Add this
 
     private LoanResponse toResponse(Loan l) {
         LoanResponse res = new LoanResponse();
@@ -32,25 +31,20 @@ public class LoanService {
         res.setBookId(l.getBook() != null ? l.getBook().getId() : null);
         return res;
     }
+    
     public List<LoanResponse> findByStatus(LoanStatus status){
         return (loanRepo.findByStatus(status)).stream().map(loan -> toResponse(loan)).collect(Collectors.toList());
     }
 
     public LoanResponse create(LoanRequest loanRequest) {
-        //private Long bookId
-        //private Long memberId; ------> loan request
-        //private Integer loanDays;
-
         Long bookId = loanRequest.getBookId();
         Long memberId = loanRequest.getMemberId();
         var book = bookRepo.findById(bookId)
                 .orElseThrow(() -> new RuntimeException("Book not found: " + bookId));
 
-
         Loan l;
         if (loanRepo.existsByBookIdAndMemberId(bookId, memberId)) {
             throw new RuntimeException("The book is already loaned by the exact user.");
-
         } else {
             l = new Loan();
             Member m;
@@ -67,13 +61,20 @@ public class LoanService {
             l.setDueDate(LocalDateTime.now().plusDays(loanDays));
             l.setStatus(LoanStatus.ACTIVE);
             Loan saved = loanRepo.save(l);
-            return toResponse(l);
-
-
+            
+            // Publish Kafka event after saving
+            LoanCreatedEvent event = LoanCreatedEvent.builder()
+                .loanId(Long.valueOf(saved.getId()))
+                .bookId(bookId)
+                .memberId(memberId)
+                .loanDate(saved.getLoanDate())
+                .dueDate(saved.getDueDate())
+                .status(saved.getStatus())
+                .build();
+            
+            kafkaProducerService.sendLoanCreatedEvent(event);
+            
+            return toResponse(saved);
         }
-
-
-
     }
-
 }

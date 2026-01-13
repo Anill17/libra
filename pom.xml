@@ -65,6 +65,11 @@
 			<artifactId>postgresql</artifactId>
 			<scope>runtime</scope>
 		</dependency>
+		<!-- Kafka Dependencies -->
+		<dependency>
+			<groupId>org.springframework.kafka</groupId>
+    		<artifactId>spring-kafka</artifactId>
+		</dependency>
 
     </dependencies>
 
